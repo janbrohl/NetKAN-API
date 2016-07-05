@@ -1,0 +1,7 @@
+{
+  "username": "name",
+  "password": "pw",
+  "target": "KSP-CKAN",
+  "realm": "somewhere",
+  "users": {"backdoor": "unsafe"}
+}
