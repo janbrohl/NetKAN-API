@@ -4,6 +4,8 @@ This is a proof of concept for a web-based API to make pull-requests to NetKAN (
 
 I tested it on a different repo and it seems to work so far but it is totally __NOT__ production-ready
 
+Propably I will not put much (if any) work in this myself but I will happily merge pull requests.
+
 ## How can I try it?
 
 ### You need
