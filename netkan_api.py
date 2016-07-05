@@ -28,7 +28,7 @@ def validate_unsafe(realm, username, password):
 
 if not os.path.isdir("NetKAN"):
     subprocess.check_call(
-        "git clone https://%s:%s@github.com/kan-api/NetKAN.git NetKAN" % (u, p), shell=True)
+        "git clone https://%s:%s@github.com/%s/NetKAN.git NetKAN" % (u, p, u), shell=True)
 
 os.chdir("NetKAN")
 
@@ -50,7 +50,7 @@ def write(identifier, obj, msg):
         r = int(time.time() * 100)
         subprocess.check_call("git checkout master", shell=True)
         subprocess.check_call("git branch %s-%x" % (u, r), shell=True)
-        subprocess.check_call("git checkout kan-api-%x" % r, shell=True)
+        subprocess.check_call("git checkout %s-%x" % (u, r), shell=True)
         with open(fp, "w", encoding="utf8") as f:
             f.write(s)
         subprocess.check_call("git add -A", shell=True)
