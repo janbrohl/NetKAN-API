@@ -26,7 +26,8 @@ with open("config.json", "r", encoding="utf8") as f:
 
 if not os.path.isdir("NetKAN"):
     subprocess.check_call("git", "clone",
-                          "https://%s:%s@github.com/%s/NetKAN.git NetKAN" % (u, p, u), shell=True)
+                          "https://github.com/%s/NetKAN.git NetKAN" % target)
+
 
 os.chdir("NetKAN")
 
@@ -41,6 +42,9 @@ def write(identifier, obj, msg, name, email):
     s = json.dumps(obj, ensure_ascii=False, sort_keys=True, indent="\t")
     fp = os.path.join("NetKAN", "%s.netkan" % identifier)
     with lock_file("../netkan.lock"):
+        subprocess.check_call("git", "checkout",
+                              "master")
+        subprocess.check_call("git", "pull")
         if os.path.exists(fp):
             mode = "Edit"
         else:
@@ -48,22 +52,22 @@ def write(identifier, obj, msg, name, email):
         t = time.gmtime()
         ts = time.strftime("%Y-%m-%dT%H:%M:%SZ")
         branch = "%s-%x" % (u, int(t * 1000))
-        subprocess.check_call("git", "checkout",
-                              "master", shell=True)
+
         subprocess.check_call("git", "branch",
-                              branch, shell=True)
+                              branch)
         subprocess.check_call("git", "checkout",
-                              branch, shell=True)
+                              branch)
         with open(fp, "w", encoding="utf8") as f:
             f.write(s)
-        subprocess.check_call("git", "add",
-                              "-A", shell=True)
         subprocess.check_call("git", "commit",
+                              "-a",
                               "-m", "%sed %s" % (mode, identifier),
-                              "--author=%s <%s>" % (name, email),
-                              shell=True)
+                              "--author=%s <%s>" % (name, email))
         subprocess.check_call("git", "push",
-                              "--set-upstream", "origin", branch, shell=True)
+                              "--set-upstream",
+                              "https://%s:%s@github.com/%s/NetKAN.git" % (
+                                  u, p, u),
+                              branch)
         gh = github.GitHub(username=u, password=p)
         gh.repos(target)("NetKAN").create_pull(
             title="%s %s at %s" % (
