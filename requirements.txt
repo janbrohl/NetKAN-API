@@ -1,3 +1,4 @@
 zc.lockfile
-cherrypy
+bottle
 githubpy
+json-rpc

@@ -13,7 +13,8 @@ import time
 import contextlib
 import zc.lockfile
 import string
-import cherrypy
+import bottle
+import jsonrpc
 
 id_chars = string.ascii_letters + string.digits + "-"
 
@@ -23,14 +24,9 @@ with open("config.json", "r", encoding="utf8") as f:
     p = config["password"]
     target = config["target"]
 
-
-def validate_unsafe(realm, username, password):
-    cp = config["users"]
-    return realm == config["realm"] and username in cp and cp["user"] == password
-
 if not os.path.isdir("NetKAN"):
-    subprocess.check_call(
-        "git clone https://%s:%s@github.com/%s/NetKAN.git NetKAN" % (u, p, u), shell=True)
+    subprocess.check_call("git", "clone",
+                          "https://%s:%s@github.com/%s/NetKAN.git NetKAN" % (u, p, u), shell=True)
 
 os.chdir("NetKAN")
 
@@ -39,7 +35,7 @@ def lock_file(path):
     return contextlib.closing(zc.lockfile.LockFile(path))
 
 
-def write(identifier, obj, msg):
+def write(identifier, obj, msg, name, email):
     if not all(c in id_chars for c in identifier):
         raise ValueError()
     s = json.dumps(obj, ensure_ascii=False, sort_keys=True, indent="\t")
@@ -49,37 +45,60 @@ def write(identifier, obj, msg):
             mode = "Edit"
         else:
             mode = "Add"
-        r = int(time.time() * 100)
-        subprocess.check_call("git checkout master", shell=True)
-        subprocess.check_call("git branch %s-%x" % (u, r), shell=True)
-        subprocess.check_call("git checkout %s-%x" % (u, r), shell=True)
+        r = int(time.gmtime() * 1000)
+        branch = "%s-%x" % (u, r)
+        subprocess.check_call("git", "checkout",
+                              "master", shell=True)
+        subprocess.check_call("git", "branch",
+                              branch, shell=True)
+        subprocess.check_call("git", "checkout",
+                              branch, shell=True)
         with open(fp, "w", encoding="utf8") as f:
             f.write(s)
-        subprocess.check_call("git add -A", shell=True)
-        subprocess.check_call("git commit -m \"%sed %s\"" %
-                              (mode, identifier), shell=True)
-        subprocess.check_call(
-            "git push --set-upstream origin %s-%x" % (u, r), shell=True)
+        subprocess.check_call("git", "add",
+                              "-A", shell=True)
+        subprocess.check_call("git", "commit",
+                              "-m", "%sed %s" % (mode, identifier),
+                              "--author=%s <%s>" % (name, email),
+                              shell=True)
+        subprocess.check_call("git", "push",
+                              "--set-upstream", "origin", branch, shell=True)
         gh = github.GitHub(username=u, password=p)
-        gh.repos(target)("NetKAN").pulls.post(title="%s %s" % (
-            mode, identifier), head="%s:%s-%x" % (u, u, r), base="master", body=str(msg))
-        subprocess.check_call("git checkout master", shell=True)
+        gh.repos(target)("NetKAN").create_pull(
+            title="%s %s" % (mode, identifier),
+            head="%s:%s" % (u, branch),
+            base="master",
+            body=str(msg))
 
 
-@cherrypy.popargs("identifier")
-class Root:
+def auth(username=None, password=None, access_token=None):
+    gh = github.GitHub(username=username, password=password,
+                       access_token=access_token)
+    user = gh.get_user()
+    return user.name, user.email, user.login
 
-    @cherrypy.expose
-    @cherrypy.tools.json_in()
-    def netkan(self, identifier):
-        data = cherrypy.request.json
-        write(identifier, data["entry"], data["message"])
-        return
 
-cp_conf = {"/": {
-    'tools.auth_basic.on': True,
-    'tools.auth_basic.realm': config["realm"],
-    'tools.auth_basic.checkpassword': validate_unsafe
-}}
+def auth_write(identifier, auth_data, entry, msg):
+    name, email, login = auth(**auth_data)
+    write(identifier, entry, msg, name, email)
 
-cherrypy.quickstart(Root(), "/", cp_conf)
+
+def rpc(dispatcher, max_body_size=1 << 20):
+    r = bottle.request
+    ctype = r.content_type
+    clen = r.content_length
+    if ctype in ('application/json', 'application/json-rpc'):
+        if 0 < clen <= max_body_size:
+            data = r.body.read(clen)
+            out = jsonrpc.JSONRPCResponseManager.handle(data, dispatcher)
+            bottle.response.content_type = 'application/json'
+            return out
+    return None
+
+app = bottle.Bottle()
+
+
+@app.post("/<identifier>/")
+def entry(self, identifier):
+    dispatcher = {"write": (lambda *args: auth_write(identifier, *args))}
+    return rpc(dispatcher)
