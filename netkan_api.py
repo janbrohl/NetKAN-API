@@ -45,8 +45,9 @@ def write(identifier, obj, msg, name, email):
             mode = "Edit"
         else:
             mode = "Add"
-        r = int(time.gmtime() * 1000)
-        branch = "%s-%x" % (u, r)
+        t = time.gmtime()
+        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        branch = "%s-%x" % (u, int(t * 1000))
         subprocess.check_call("git", "checkout",
                               "master", shell=True)
         subprocess.check_call("git", "branch",
@@ -65,7 +66,8 @@ def write(identifier, obj, msg, name, email):
                               "--set-upstream", "origin", branch, shell=True)
         gh = github.GitHub(username=u, password=p)
         gh.repos(target)("NetKAN").create_pull(
-            title="%s %s" % (mode, identifier),
+            title="%s %s at %s" % (
+                mode, identifier, ts),
             head="%s:%s" % (u, branch),
             base="master",
             body=str(msg))
@@ -79,7 +81,7 @@ def auth(username=None, password=None, access_token=None):
 
 
 def auth_write(identifier, auth_data, entry, msg):
-    name, email, login = auth(**auth_data)
+    name, email, _login = auth(**auth_data)
     write(identifier, entry, msg, name, email)
 
 
