@@ -1,4 +1,5 @@
 # NetKAN-API
+[🍕Buy me a Pizza](https://www.buymeacoffee.com/janbrohl>)
 
 This is a proof of concept for a web-based API to make pull-requests to NetKAN ( https://github.com/KSP-CKAN/NetKAN ) so changes would only have to be approved by the KSP-CKAN team.
 
