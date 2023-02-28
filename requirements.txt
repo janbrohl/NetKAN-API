@@ -1,3 +1,3 @@
-zc.lockfile~=1.3
+zc.lockfile==3.0.post1
 cherrypy~=15.0
 githubpy~=1.1
